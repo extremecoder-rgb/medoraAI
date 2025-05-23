@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #f44336; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; }
+        .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+        .button { 
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Appointment Cancellation Confirmation</h1>
+        </div>
+        <div class="content">
+            <p>Dear {{user_name}},</p>
+            <p>Your appointment has been successfully cancelled:</p>
+            <ul>
+                <li><strong>Doctor:</strong> {{doctor_name}}</li>
+                <li><strong>Original Date:</strong> {{appointment_date}}</li>
+                <li><strong>Original Time:</strong> {{appointment_time}}</li>
+                {% if location %}
+                <li><strong>Location:</strong> {{location}}</li>
+                {% endif %}
+            </ul>
+            <p>Would you like to reschedule your appointment?</p>
+            <p>
+                <a href="{{reschedule_url}}" class="button">Reschedule Appointment</a>
+            </p>
+            <p>Or you can use our chatbot to find a new appointment time that works for you.</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message, please do not reply directly to this email.</p>
+        </div>
+    </div>
+</body>
+</html> 

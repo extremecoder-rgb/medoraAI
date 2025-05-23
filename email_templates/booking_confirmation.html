@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #4CAF50; color: white; padding: 20px; text-align: center; }
+        .content { padding: 20px; }
+        .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Appointment Confirmation</h1>
+        </div>
+        <div class="content">
+            <p>Dear {{user_name}},</p>
+            <p>Your appointment has been successfully booked with the following details:</p>
+            <ul>
+                <li><strong>Doctor:</strong> {{doctor_name}}</li>
+                <li><strong>Date:</strong> {{appointment_date}}</li>
+                <li><strong>Time:</strong> {{appointment_time}}</li>
+                {% if location %}
+                <li><strong>Location:</strong> {{location}}</li>
+                {% endif %}
+            </ul>
+            <p>Please arrive 10 minutes before your scheduled time.</p>
+            <p>If you need to reschedule or cancel your appointment, please use our chatbot or visit the appointment portal.</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated message, please do not reply directly to this email.</p>
+        </div>
+    </div>
+</body>
+</html> 
