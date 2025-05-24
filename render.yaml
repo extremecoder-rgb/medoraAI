@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: medical-assistant
+    env: python
+    plan: free
+    buildCommand: |
+      apt-get update && \
+      while read -r package; do apt-get install -y "$package"; done < apt.txt && \
+      pip install -r requirements.txt
+    startCommand: streamlit run app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: POETRY_VERSION
+        value: 1.7.1
+    healthCheckPath: /_stcore/health
+    autoDeploy: true 
