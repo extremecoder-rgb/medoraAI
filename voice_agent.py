@@ -1,7 +1,4 @@
 import asyncio
-import sounddevice as sd
-import numpy as np
-import wave
 import tempfile
 import os
 from gtts import gTTS
@@ -21,10 +18,6 @@ logger = setup_logger(__name__)
 class VoiceAgent:
     def __init__(self):
         try:
-            self.sample_rate = 44100
-            self.channels = 1
-            self.duration = 5  # seconds
-            
             # Initialize pygame mixer only if not already initialized
             if not pygame.mixer.get_init():
                 try:
@@ -38,23 +31,12 @@ class VoiceAgent:
             self.recognizer = sr.Recognizer()
             self.current_audio_file = None
             
-            # Test audio device availability
-            try:
-                sd.check_input_settings(
-                    samplerate=self.sample_rate,
-                    channels=self.channels,
-                    dtype=np.float32
-                )
-            except Exception as e:
-                logger.error(f"Audio input device not available: {e}")
-                logger.warning("Voice input functionality will be disabled")
-            
             # Adjust for ambient noise
             self.recognizer.dynamic_energy_threshold = True
             self.recognizer.energy_threshold = 500  # Even lower threshold for better sensitivity
             self.recognizer.pause_threshold = 0.2  # Shorter pause threshold
             self.recognizer.phrase_threshold = 0.1  # More sensitive to phrases
-            self.recognizer.non_speaking_duration = 0.1  # Shorter non-speaking duration
+            self.recognizer.non_speaking_duration = 0.1
             
             # Initialize audio queue
             self.audio_queue = queue.Queue()
@@ -80,9 +62,26 @@ class VoiceAgent:
             return "No audio data received. Please try again."
         
         try:
-            # Here you would implement the speech-to-text processing
-            # For now, we'll use a placeholder response
-            return "Voice command received. This is a placeholder response."
+            # Convert base64 audio data to temporary file
+            audio_bytes = base64.b64decode(audio_data)
+            temp_file = os.path.join(self.temp_dir, f"voice_input_{int(time.time())}.wav")
+            
+            with open(temp_file, 'wb') as f:
+                f.write(audio_bytes)
+            
+            # Use speech recognition to convert audio to text
+            with sr.AudioFile(temp_file) as source:
+                audio = self.recognizer.record(source)
+                text = self.recognizer.recognize_google(audio)
+            
+            # Clean up temporary file
+            try:
+                os.unlink(temp_file)
+            except Exception as e:
+                logger.error(f"Error cleaning up audio file: {str(e)}")
+            
+            return text
+                
         except Exception as e:
             logger.error(f"Error processing voice command: {str(e)}")
             return "Sorry, there was an error processing your voice input. Please try again."
