@@ -12,6 +12,8 @@ import speech_recognition as sr
 import queue
 import threading
 import sys
+import streamlit as st
+import base64
 
 logger = setup_logger(__name__)
 
@@ -195,3 +197,15 @@ class VoiceAgent:
         except Exception as e:
             logger.error(f"Error in text to speech: {str(e)}")
             # Don't re-raise the exception, just log it
+
+    def get_audio_html(self, text):
+        """Generate HTML for audio playback."""
+        audio_data = self.text_to_speech(text)
+        if audio_data:
+            return f"""
+            <audio controls autoplay>
+                <source src="data:audio/mp3;base64,{audio_data}" type="audio/mp3">
+                Your browser does not support the audio element.
+            </audio>
+            """
+        return ""
