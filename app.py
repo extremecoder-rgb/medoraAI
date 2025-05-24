@@ -167,20 +167,6 @@ def main():
         else:
             st.info("No appointments scheduled yet.")
             st.markdown("Use the chat to book your first appointment! 😊")
-        
-        # Appointment statistics
-        st.markdown("---")
-        st.markdown("**📊 Statistics:**")
-        if st.session_state.appointments:
-            today = datetime.datetime.now().date()
-            today_appointments = [apt for apt in st.session_state.appointments if apt["time"].date() == today]
-            upcoming_appointments = [apt for apt in st.session_state.appointments if apt["time"] > datetime.datetime.now()]
-            
-            stat_col1, stat_col2 = st.columns(2)
-            with stat_col1:
-                st.metric("Today", len(today_appointments))
-            with stat_col2:
-                st.metric("Upcoming", len(upcoming_appointments))
 
     with col3:
         st.subheader("⚙️ System Controls")
