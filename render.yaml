@@ -4,22 +4,16 @@ services:
     env: python
     plan: free
     buildCommand: |
-      sudo apt-get update && \
-      sudo apt-get install -y software-properties-common && \
-      sudo add-apt-repository -y ppa:deadsnakes/ppa && \
-      sudo apt-get update && \
-      sudo apt-get install -y python3.11 python3.11-dev python3.11-venv && \
-      sudo apt-get install -y portaudio19-dev python3-all-dev libportaudio2 libasound2-dev libportaudiocpp0 libsndfile1 libsndfile1-dev ffmpeg libespeak-dev && \
-      python -m pip install --upgrade pip && \
-      pip install -r requirements.txt && \
-      pip install --upgrade portaudio
+      apt-get update && \
+      apt-get install -y portaudio19-dev python3-all-dev && \
+      pip install --upgrade pip && \
+      pip install wheel && \
+      pip install -r requirements.txt
     startCommand: streamlit run app.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: POETRY_VERSION
         value: 1.7.1
-      - key: PATH
-        value: /usr/local/bin:/usr/bin:/bin
     healthCheckPath: /_stcore/health
     autoDeploy: true 
