@@ -18,10 +18,13 @@ logger = setup_logger(__name__)
 class VoiceAgent:
     def __init__(self):
         try:
-            # Initialize pygame mixer only if not already initialized
+            # Set environment variable to use dummy audio driver
+            os.environ['SDL_AUDIODRIVER'] = 'dummy'
+            
+            # Initialize pygame mixer with dummy driver
             if not pygame.mixer.get_init():
                 try:
-                    pygame.mixer.init()
+                    pygame.mixer.init(devicename='dummy')
                 except Exception as e:
                     logger.error(f"Failed to initialize pygame mixer: {e}")
                     logger.warning("Text-to-speech functionality will be disabled")

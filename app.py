@@ -244,7 +244,7 @@ def process_user_input(user_input: str):
     st.session_state.multi_agent_conversation.append(HumanMessage(content=user_input))
     
     # Get response from multi-agent system
-    response = multi_agent_orchestrator(user_input)
+    response = multi_agent_orchestrator.process_user_message(user_input)
     
     # Add AI response to conversation
     st.session_state.multi_agent_conversation.append(AIMessage(content=response))

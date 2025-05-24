@@ -5,7 +5,7 @@ services:
     plan: free
     buildCommand: |
       apt-get update && \
-      apt-get install -y python3-all-dev ffmpeg && \
+      apt-get install -y python3-all-dev ffmpeg libasound2-dev libportaudio2 libportaudiocpp0 portaudio19-dev libsndfile1 libsndfile1-dev libespeak-dev && \
       pip install --upgrade pip && \
       pip install wheel && \
       pip install -r requirements.txt
