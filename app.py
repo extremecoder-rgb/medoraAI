@@ -7,6 +7,7 @@ from logger import setup_logger
 from utils import initialize_session_state, process_appointments, add_manual_appointment, cancel_appointment
 from voice_agent import VoiceAgent
 from audio_interface import audio_recorder, audio_player
+from email_service import email_service
 import datetime
 import json
 
@@ -90,11 +91,12 @@ def main():
             try:
                 voice_input = st.session_state.voice_agent.process_voice_command(st.session_state.audio_data)
                 if voice_input:
-                    st.text_area("🎙️ Voice Input Detected:", value=voice_input, height=100, disabled=True)
+                    st.markdown("**🎙️ Voice Input Detected:**")
+                    st.text_area("", value=voice_input, height=100, disabled=True)
                     
                     voice_btn_col1, voice_btn_col2 = st.columns(2)
                     with voice_btn_col1:
-                        if st.button("✅ Send Voice Input", type="primary"):
+                        if st.button("🤖 Send to AI Assistant", type="primary"):
                             process_user_input(voice_input)
                             st.session_state.audio_data = None
                             st.rerun()
@@ -194,18 +196,23 @@ def main():
         st.markdown("**➕ Manual Booking:**")
         with st.form("quick_appointment_form"):
             name = st.text_input("Name*", placeholder="Patient Name")
-            email = st.text_input("Email", placeholder="patient@email.com")
+            email = st.text_input("Email*", placeholder="patient@email.com")
             doctor = st.selectbox("Doctor", ["Dr. Smith", "Dr. Johnson", "Dr. Williams", "Dr. Brown"])
             apt_type = st.selectbox("Type", ["Consultation", "Follow-up", "Check-up", "Emergency"])
             date = st.date_input("Date", min_value=datetime.date.today())
             time = st.time_input("Time", value=datetime.time(9, 0))
             
+            # Local doctor schedules dictionary
+            doctor_schedules = {
+                "Dr. Smith": {"location": "Main Building, Room 101"},
+                "Dr. Johnson": {"location": "Cardiac Wing, Room 205"},
+                "Dr. Williams": {"location": "Dermatology Center, Room 301"},
+                "Dr. Brown": {"location": "Sports Medicine Wing, Room 150"}
+            }
+            
             if st.form_submit_button("📅 Book Appointment", type="primary"):
-                if name:
-                    # Get doctor info for location
-                    from enhanced_tools import DOCTOR_SCHEDULES
-                    doctor_info = DOCTOR_SCHEDULES.get(doctor, {})
-                    
+                if name and email:
+                    doctor_info = doctor_schedules.get(doctor, {})
                     add_manual_appointment(
                         person_name=name,
                         appointment_type=apt_type,
@@ -215,10 +222,22 @@ def main():
                         doctor_name=doctor,
                         location=doctor_info.get('location', 'Main Office')
                     )
-                    st.success(f"✅ Appointment booked for {name}!")
+                    # Send confirmation email
+                    appointment_data = {
+                        "name": name,
+                        "email": email,
+                        "doctor_name": doctor,
+                        "type": apt_type,
+                        "time": datetime.datetime.combine(date, time),
+                        "location": doctor_info.get('location', 'Main Office')
+                    }
+                    if email_service.send_appointment_confirmation(appointment_data):
+                        st.success(f"✅ Appointment booked for {name}! Confirmation email sent.")
+                    else:
+                        st.warning(f"✅ Appointment booked for {name}, but email confirmation failed.")
                     st.rerun()
                 else:
-                    st.error("Patient name is required!")
+                    st.error("Patient name and email are required!")
         
         # Debug information (collapsible)
         with st.expander("🔧 Debug Information"):

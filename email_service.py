@@ -1,3 +1,4 @@
+import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -7,17 +8,19 @@ import time
 import threading
 from logger import setup_logger
 from config import AppConfig
+from dotenv import load_dotenv
 
 logger = setup_logger(__name__)
+load_dotenv()
 
 class EmailService:
     def __init__(self):
         self.config = AppConfig()
-        self.smtp_server = self.config.smtp_server
-        self.smtp_port = self.config.smtp_port
-        self.smtp_username = self.config.smtp_username
-        self.smtp_password = self.config.smtp_password
-        self.sender_email = self.config.sender_email
+        self.smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        self.smtp_username = os.getenv('SMTP_USERNAME')
+        self.smtp_password = os.getenv('SMTP_PASSWORD')
+        self.sender_email = os.getenv('SENDER_EMAIL')
         self.reminder_thread = None
         self.is_running = False
         self.email_enabled = bool(self.smtp_username and self.smtp_password)
@@ -59,7 +62,7 @@ class EmailService:
                 <p>Details:</p>
                 <ul>
                     <li>Doctor: {appointment['doctor_name']}</li>
-                    <li>Date: {appointment['date'].strftime('%B %d, %Y')}</li>
+                    <li>Date: {appointment['time'].strftime('%B %d, %Y')}</li>
                     <li>Time: {appointment['time'].strftime('%I:%M %p')}</li>
                     <li>Location: {appointment['location']}</li>
                 </ul>
@@ -82,7 +85,7 @@ class EmailService:
                 <p>Details of cancelled appointment:</p>
                 <ul>
                     <li>Doctor: {appointment['doctor_name']}</li>
-                    <li>Date: {appointment['date'].strftime('%B %d, %Y')}</li>
+                    <li>Date: {appointment['time'].strftime('%B %d, %Y')}</li>
                     <li>Time: {appointment['time'].strftime('%I:%M %p')}</li>
                 </ul>
                 <p>If you would like to schedule a new appointment, please visit our website or contact us.</p>
@@ -104,7 +107,7 @@ class EmailService:
                 <p>Details:</p>
                 <ul>
                     <li>Doctor: {appointment['doctor_name']}</li>
-                    <li>Date: {appointment['date'].strftime('%B %d, %Y')}</li>
+                    <li>Date: {appointment['time'].strftime('%B %d, %Y')}</li>
                     <li>Time: {appointment['time'].strftime('%I:%M %p')}</li>
                     <li>Location: {appointment['location']}</li>
                 </ul>
@@ -121,7 +124,7 @@ class EmailService:
         try:
             now = datetime.now()
             for appointment in appointments:
-                appointment_time = datetime.combine(appointment['date'], appointment['time'])
+                appointment_time = appointment['time']
                 time_diff = appointment_time - now
                 
                 # Send reminder 24 hours before
@@ -157,4 +160,56 @@ class EmailService:
         self.is_running = False
         if self.reminder_thread:
             self.reminder_thread.join(timeout=1)
-        logger.info("Reminder service stopped") 
+        logger.info("Reminder service stopped")
+
+    def send_appointment_confirmation(self, appointment_data):
+        """Send appointment confirmation email."""
+        try:
+            if not all([self.smtp_username, self.smtp_password, self.sender_email]):
+                logger.warning("Email configuration incomplete. Skipping email send.")
+                return False
+
+            if not appointment_data.get('email'):
+                logger.warning("No recipient email provided. Skipping email send.")
+                return False
+
+            msg = MIMEMultipart()
+            msg['From'] = self.sender_email
+            msg['To'] = appointment_data['email']
+            msg['Subject'] = "Appointment Confirmation - Smart Medical System"
+
+            # Create email body
+            body = f"""
+            Dear {appointment_data['name']},
+
+            Your appointment has been confirmed with the following details:
+
+            Doctor: {appointment_data['doctor_name']}
+            Date & Time: {appointment_data['time'].strftime('%A, %B %d, %Y at %I:%M %p')}
+            Type: {appointment_data['type']}
+            Location: {appointment_data.get('location', 'Main Office')}
+
+            Please arrive 15 minutes before your scheduled time.
+            If you need to reschedule or cancel, please use our online system or contact us directly.
+
+            Best regards,
+            Smart Medical System Team
+            """
+
+            msg.attach(MIMEText(body, 'plain'))
+
+            # Connect to SMTP server and send email
+            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.smtp_username, self.smtp_password)
+                server.send_message(msg)
+
+            logger.info(f"Confirmation email sent to {appointment_data['email']}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to send confirmation email: {str(e)}")
+            return False
+
+# Create global instance
+email_service = EmailService() 

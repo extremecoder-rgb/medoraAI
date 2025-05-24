@@ -60,33 +60,29 @@ class VoiceAgent:
             return loop
 
     def process_voice_command(self, audio_data=None):
-        """Process voice command from browser audio data."""
+        logger.info(f"Received audio_data: {audio_data is not None}, length: {len(audio_data) if audio_data else 0}")
         if not audio_data:
+            logger.error("No audio data received in process_voice_command.")
             return "No audio data received. Please try again."
-        
         try:
             # Convert base64 audio data to temporary file
             audio_bytes = base64.b64decode(audio_data)
             temp_file = os.path.join(self.temp_dir, f"voice_input_{int(time.time())}.wav")
-            
             with open(temp_file, 'wb') as f:
                 f.write(audio_bytes)
-            
+            logger.info(f"Saved audio file: {temp_file}, size: {os.path.getsize(temp_file)} bytes")
             # Use speech recognition to convert audio to text
             with sr.AudioFile(temp_file) as source:
                 audio = self.recognizer.record(source)
                 text = self.recognizer.recognize_google(audio)
-            
             # Clean up temporary file
             try:
                 os.unlink(temp_file)
             except Exception as e:
                 logger.error(f"Error cleaning up audio file: {str(e)}")
-            
             return text
-                
         except Exception as e:
-            logger.error(f"Error processing voice command: {str(e)}")
+            logger.error(f"Error processing voice command: {str(e)}", exc_info=True)
             return "Sorry, there was an error processing your voice input. Please try again."
 
     def text_to_speech(self, text):
