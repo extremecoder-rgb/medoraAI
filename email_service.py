@@ -1,137 +1,160 @@
-import os
-import emails
-from emails.template import JinjaTemplate
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
+import schedule
+import time
+import threading
 from logger import setup_logger
+from config import AppConfig
 
 logger = setup_logger(__name__)
 
 class EmailService:
     def __init__(self):
-        self.smtp_options = {
-            "host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
-            "port": int(os.getenv("SMTP_PORT", "587")),
-            "user": os.getenv("SMTP_USER"),
-            "password": os.getenv("SMTP_PASSWORD"),
-            "tls": True
-        }
-        self.scheduler = BackgroundScheduler()
-        self.scheduler.start()
-        self.setup_reminder_job()
+        self.config = AppConfig()
+        self.smtp_server = self.config.smtp_server
+        self.smtp_port = self.config.smtp_port
+        self.smtp_username = self.config.smtp_username
+        self.smtp_password = self.config.smtp_password
+        self.sender_email = self.config.sender_email
+        self.reminder_thread = None
+        self.is_running = False
+        self.email_enabled = bool(self.smtp_username and self.smtp_password)
 
-    def send_email(self, to_email, subject, template_name, template_data):
-        """Send an email using the specified template and data"""
+    def send_email(self, recipient_email, subject, body):
+        if not self.email_enabled:
+            logger.warning("Email service is disabled. Configure SMTP credentials to enable email features.")
+            return False
+            
         try:
-            template_path = os.path.join("email_templates", f"{template_name}.html")
-            with open(template_path, "r") as f:
-                template = JinjaTemplate(f.read())
-
-            message = emails.Message(
-                subject=subject,
-                html=template.render(**template_data),
-                mail_from=(os.getenv("EMAIL_FROM_NAME", "Appointment System"), 
-                          os.getenv("EMAIL_FROM_ADDRESS", "noreply@example.com"))
-            )
-
-            response = message.send(
-                to=to_email,
-                render=template_data,
-                smtp=self.smtp_options
-            )
+            msg = MIMEMultipart()
+            msg['From'] = self.sender_email
+            msg['To'] = recipient_email
+            msg['Subject'] = subject
             
-            if response.status_code not in [250, 200, 201, 202]:
-                logger.error(f"Failed to send email: {response.error}")
-                return False
+            msg.attach(MIMEText(body, 'html'))
+            
+            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.smtp_username, self.smtp_password)
+                server.send_message(msg)
                 
-            logger.info(f"Email sent successfully to {to_email}")
+            logger.info(f"Email sent to {recipient_email}")
             return True
-            
         except Exception as e:
             logger.error(f"Error sending email: {str(e)}")
             return False
 
     def send_booking_confirmation(self, appointment):
-        """Send booking confirmation email"""
-        template_data = {
-            "user_name": appointment["name"],
-            "doctor_name": appointment.get("doctor_name", "Your Doctor"),
-            "appointment_date": appointment["time"].strftime("%B %d, %Y"),
-            "appointment_time": appointment["time"].strftime("%I:%M %p"),
-            "location": appointment.get("location", "Main Office")
-        }
-        
-        return self.send_email(
-            to_email=appointment["email"],
-            subject="Appointment Confirmation",
-            template_name="booking_confirmation",
-            template_data=template_data
-        )
+        if not self.email_enabled:
+            logger.warning("Email service is disabled. Skipping booking confirmation email.")
+            return False
+            
+        subject = "Appointment Confirmation"
+        body = f"""
+        <html>
+            <body>
+                <h2>Your appointment has been confirmed!</h2>
+                <p>Details:</p>
+                <ul>
+                    <li>Doctor: {appointment['doctor_name']}</li>
+                    <li>Date: {appointment['date'].strftime('%B %d, %Y')}</li>
+                    <li>Time: {appointment['time'].strftime('%I:%M %p')}</li>
+                    <li>Location: {appointment['location']}</li>
+                </ul>
+                <p>Thank you for choosing our service!</p>
+            </body>
+        </html>
+        """
+        return self.send_email(appointment['email'], subject, body)
 
     def send_cancellation_confirmation(self, appointment):
-        """Send cancellation confirmation email"""
-        template_data = {
-            "user_name": appointment["name"],
-            "doctor_name": appointment.get("doctor_name", "Your Doctor"),
-            "appointment_date": appointment["time"].strftime("%B %d, %Y"),
-            "appointment_time": appointment["time"].strftime("%I:%M %p"),
-            "location": appointment.get("location", "Main Office"),
-            "reschedule_url": os.getenv("RESCHEDULE_URL", "https://example.com/reschedule")
-        }
-        
-        return self.send_email(
-            to_email=appointment["email"],
-            subject="Appointment Cancellation Confirmation",
-            template_name="cancellation_confirmation",
-            template_data=template_data
-        )
+        if not self.email_enabled:
+            logger.warning("Email service is disabled. Skipping cancellation confirmation email.")
+            return False
+            
+        subject = "Appointment Cancellation Confirmation"
+        body = f"""
+        <html>
+            <body>
+                <h2>Your appointment has been cancelled</h2>
+                <p>Details of cancelled appointment:</p>
+                <ul>
+                    <li>Doctor: {appointment['doctor_name']}</li>
+                    <li>Date: {appointment['date'].strftime('%B %d, %Y')}</li>
+                    <li>Time: {appointment['time'].strftime('%I:%M %p')}</li>
+                </ul>
+                <p>If you would like to schedule a new appointment, please visit our website or contact us.</p>
+            </body>
+        </html>
+        """
+        return self.send_email(appointment['email'], subject, body)
 
     def send_reminder(self, appointment):
-        """Send appointment reminder email"""
-        template_data = {
-            "user_name": appointment["name"],
-            "doctor_name": appointment.get("doctor_name", "Your Doctor"),
-            "appointment_date": appointment["time"].strftime("%B %d, %Y"),
-            "appointment_time": appointment["time"].strftime("%I:%M %p"),
-            "location": appointment.get("location", "Main Office"),
-            "cancel_url": os.getenv("CANCEL_URL", "https://example.com/cancel")
-        }
-        
-        return self.send_email(
-            to_email=appointment["email"],
-            subject="Appointment Reminder - 1 Hour Before",
-            template_name="appointment_reminder",
-            template_data=template_data
-        )
+        if not self.email_enabled:
+            logger.warning("Email service is disabled. Skipping reminder email.")
+            return False
+            
+        subject = "Appointment Reminder"
+        body = f"""
+        <html>
+            <body>
+                <h2>Reminder: You have an upcoming appointment</h2>
+                <p>Details:</p>
+                <ul>
+                    <li>Doctor: {appointment['doctor_name']}</li>
+                    <li>Date: {appointment['date'].strftime('%B %d, %Y')}</li>
+                    <li>Time: {appointment['time'].strftime('%I:%M %p')}</li>
+                    <li>Location: {appointment['location']}</li>
+                </ul>
+                <p>Please arrive 10 minutes before your scheduled time.</p>
+            </body>
+        </html>
+        """
+        return self.send_email(appointment['email'], subject, body)
 
-    def setup_reminder_job(self):
-        """Setup the scheduler job for sending reminders"""
-        def check_and_send_reminders():
-            try:
-                # Get all appointments from the session state
-                appointments = st.session_state.get("appointments", [])
-                current_time = datetime.now()
+    def check_and_send_reminders(self, appointments):
+        if not self.email_enabled:
+            return
+            
+        try:
+            now = datetime.now()
+            for appointment in appointments:
+                appointment_time = datetime.combine(appointment['date'], appointment['time'])
+                time_diff = appointment_time - now
                 
-                for appointment in appointments:
-                    # Check if appointment is in 1 hour
-                    appointment_time = appointment["time"]
-                    time_diff = appointment_time - current_time
-                    
-                    if timedelta(hours=0, minutes=55) <= time_diff <= timedelta(hours=1, minutes=5):
-                        # Send reminder if not already sent
-                        if not appointment.get("reminder_sent"):
-                            if self.send_reminder(appointment):
-                                appointment["reminder_sent"] = True
-                                logger.info(f"Reminder sent for appointment: {appointment}")
-                                
-            except Exception as e:
-                logger.error(f"Error in reminder job: {str(e)}")
+                # Send reminder 24 hours before
+                if timedelta(hours=23) <= time_diff <= timedelta(hours=25):
+                    self.send_reminder(appointment)
+                    logger.info(f"Sent 24-hour reminder for appointment with {appointment['doctor_name']}")
+                
+                # Send reminder 1 hour before
+                elif timedelta(minutes=55) <= time_diff <= timedelta(minutes=65):
+                    self.send_reminder(appointment)
+                    logger.info(f"Sent 1-hour reminder for appointment with {appointment['doctor_name']}")
+        except Exception as e:
+            logger.error(f"Error in reminder job: {str(e)}")
 
-        # Schedule the job to run every 5 minutes
-        self.scheduler.add_job(
-            check_and_send_reminders,
-            trigger=IntervalTrigger(minutes=5),
-            id="reminder_job",
-            replace_existing=True
-        ) 
+    def start_reminder_service(self, appointments):
+        if not self.email_enabled:
+            logger.warning("Email service is disabled. Reminder service will not start.")
+            return
+            
+        def reminder_job():
+            while self.is_running:
+                self.check_and_send_reminders(appointments)
+                time.sleep(300)  # Check every 5 minutes
+
+        if not self.is_running:
+            self.is_running = True
+            self.reminder_thread = threading.Thread(target=reminder_job)
+            self.reminder_thread.daemon = True
+            self.reminder_thread.start()
+            logger.info("Reminder service started")
+
+    def stop_reminder_service(self):
+        self.is_running = False
+        if self.reminder_thread:
+            self.reminder_thread.join(timeout=1)
+        logger.info("Reminder service stopped") 

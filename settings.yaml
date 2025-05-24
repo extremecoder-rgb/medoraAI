@@ -1,21 +1,102 @@
 llm:
-  model: "gemma2-9b-it"
+  model: "gemma-7b"  # Updated to use Gemma model
+  temperature: 0.7
+  max_tokens: 1000
 
 prompts:
+  # Legacy prompt for backward compatibility
   caller_pa: |
-    You are a helpful and friendly personal assistant managing appointments. Interact naturally and conversationally. Always use the current year for appointments unless specified otherwise.
+    You are a medical appointment scheduling assistant. Your role is to:
+    1. Help patients schedule appointments with appropriate doctors
+    2. Manage appointment cancellations and rescheduling
+    3. Provide information about doctors and their availability
+    4. Handle basic medical queries and route to appropriate specialists
 
-    When you need to use a function, wrap it in <tool_call> tags. Do not include any other text in your response when using a tool call.
+  # Multi-Agent System Prompts
+  user_bot: |
+    You are the User Interface Agent in a medical appointment system. Your role is to:
+    - Greet users and understand their needs
+    - Collect basic information (name, contact details)
+    - Route medical questions to Doctor Agent
+    - Route scheduling tasks to Scheduler Agent
+    - Maintain helpful and professional communication
 
-    Available functions:
-    - book_appointment(year, month, day, hour, minute, name)
-    - get_next_available_appointment()
-    - cancel_appointment(year, month, day, hour, minute)
+  doctor_bot: |
+    You are the Medical Consultation Agent. Your role is to:
+    - Provide general health information
+    - Suggest appropriate medical specialties
+    - Recommend suitable doctors
+    - Advise on appointment urgency
+    - Note: You cannot diagnose conditions
 
-    Current time: {current_time}
+  scheduler_bot: |
+    You are the Scheduling Agent. Your role is to:
+    - Book new appointments
+    - Cancel and reschedule appointments
+    - Check doctor availability
+    - Send confirmations and reminders
+    - Manage scheduling conflicts
 
-    Remember:
-    1. Confirm details before booking or cancelling.
-    2. Use natural language in your responses.
-    3. Always use the correct year for appointments.
-    4. Only use tool calls when necessary, and don't explain them to the user.
+# Agent Coordination Settings
+agent_settings:
+  max_conversation_turns: 10
+  enable_agent_handoff: true
+  require_confirmation: true
+  send_notifications: true
+  
+# Notification Settings  
+notifications:
+  booking_confirmation: true
+  cancellation_confirmation: true
+  appointment_reminders: true
+  reminder_advance_hours: 1
+
+# Doctor Specialties Mapping
+specialties:
+  general: "Dr. Smith"
+  cardiology: "Dr. Johnson" 
+  heart: "Dr. Johnson"
+  cardiac: "Dr. Johnson"
+  dermatology: "Dr. Williams"
+  skin: "Dr. Williams"
+  orthopedics: "Dr. Brown"
+  bones: "Dr. Brown"
+  joints: "Dr. Brown"
+  back: "Dr. Brown"
+
+doctor_schedules:
+  Dr_Smith:
+    specialty: "General Practice"
+    days: ["Monday", "Wednesday", "Friday"]
+    hours: "9:00 AM - 5:00 PM"
+    
+  Dr_Johnson:
+    specialty: "Cardiology"
+    days: ["Tuesday", "Thursday"]
+    hours: "10:00 AM - 4:00 PM"
+    
+  Dr_Williams:
+    specialty: "Dermatology"
+    days: ["Monday", "Tuesday", "Thursday", "Friday"]
+    hours: "8:00 AM - 3:00 PM"
+    
+  Dr_Brown:
+    specialty: "Orthopedics"
+    days: ["Wednesday", "Thursday", "Friday"]
+    hours: "9:00 AM - 6:00 PM"
+
+voice:
+  enabled: true
+  language: "en-US"
+  sample_rate: 44100
+  channels: 1
+  duration: 5
+
+email:
+  templates_dir: "email_templates"
+  reminder_intervals: [24, 1]
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "app.log"
