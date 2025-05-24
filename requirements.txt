@@ -3,14 +3,10 @@ langchain-core>=0.1.27
 langchain-groq>=0.0.6
 langgraph>=0.0.26
 numpy>=1.26.0
-pygame>=2.5.2
 python-dateutil>=2.8.2
 python-dotenv>=1.0.1
 pytz>=2024.1
 PyYAML>=6.0.1
 requests>=2.31.0
 schedule>=1.2.1
-sounddevice==0.4.6
-SpeechRecognition>=3.10.1
 streamlit>=1.32.0
-vosk>=0.3.45

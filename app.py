@@ -6,7 +6,9 @@ from config import AppConfig
 from logger import setup_logger
 from utils import initialize_session_state, process_appointments, add_manual_appointment, cancel_appointment
 from voice_agent import VoiceAgent
+from audio_interface import audio_recorder, audio_player
 import datetime
+import json
 
 logger = setup_logger(__name__)
 
@@ -50,40 +52,59 @@ def main():
                     message.content != st.session_state.last_spoken_message):
                     try:
                         if hasattr(st.session_state, 'voice_agent'):
-                            st.session_state.voice_agent.text_to_speech(message.content)
-                            st.session_state.last_spoken_message = message.content
+                            audio_data = st.session_state.voice_agent.text_to_speech(message.content)
+                            if audio_data:
+                                audio_player(audio_data)
+                                st.session_state.last_spoken_message = message.content
                     except Exception as e:
                         logger.warning(f"Text-to-speech failed: {e}")
 
         # Voice input section
         st.markdown("---")
-        voice_col1, voice_col2 = st.columns(2)
+        st.markdown("**🎤 Voice Input**")
         
-        with voice_col1:
-            if st.button("🎤 Start Voice Input", type="secondary"):
-                with st.spinner("🎧 Listening... Please speak now"):
-                    try:
-                        voice_input = st.session_state.voice_agent.process_voice_command()
-                        if voice_input:
-                            st.session_state.voice_input = voice_input
-                            st.rerun()
-                    except Exception as e:
-                        st.error(f"Voice input failed: {e}")
-
-        # Display voice input if available
-        if 'voice_input' in st.session_state:
-            st.text_area("🎙️ Voice Input Detected:", value=st.session_state.voice_input, height=100, disabled=True)
+        # Add audio recorder
+        audio_recorder()
+        
+        # Handle audio data from browser
+        if 'audio_data' not in st.session_state:
+            st.session_state.audio_data = None
             
-            voice_btn_col1, voice_btn_col2 = st.columns(2)
-            with voice_btn_col1:
-                if st.button("✅ Send Voice Input", type="primary"):
-                    process_user_input(st.session_state.voice_input)
-                    del st.session_state.voice_input
-                    st.rerun()
-            with voice_btn_col2:
-                if st.button("❌ Clear Voice Input"):
-                    del st.session_state.voice_input
-                    st.rerun()
+        # JavaScript to handle audio data
+        js = """
+        <script>
+            window.addEventListener('message', function(event) {
+                if (event.data.type === 'audioData') {
+                    window.parent.postMessage({
+                        type: 'streamlit:setComponentValue',
+                        value: event.data.data
+                    }, '*');
+                }
+            });
+        </script>
+        """
+        st.components.v1.html(js, height=0)
+        
+        # Process audio data if available
+        if st.session_state.audio_data:
+            try:
+                voice_input = st.session_state.voice_agent.process_voice_command(st.session_state.audio_data)
+                if voice_input:
+                    st.text_area("🎙️ Voice Input Detected:", value=voice_input, height=100, disabled=True)
+                    
+                    voice_btn_col1, voice_btn_col2 = st.columns(2)
+                    with voice_btn_col1:
+                        if st.button("✅ Send Voice Input", type="primary"):
+                            process_user_input(voice_input)
+                            st.session_state.audio_data = None
+                            st.rerun()
+                    with voice_btn_col2:
+                        if st.button("❌ Clear Voice Input"):
+                            st.session_state.audio_data = None
+                            st.rerun()
+            except Exception as e:
+                st.error(f"Voice processing failed: {e}")
+                st.session_state.audio_data = None
 
         # Regular text input
         user_input = st.chat_input("💬 Type your message here (e.g., 'I need to book an appointment with a cardiologist')")
@@ -215,26 +236,18 @@ def main():
                 st.rerun()
 
 def process_user_input(user_input: str):
-    """Process user input through the multi-agent system"""
-    logger.info(f"Processing user input: {user_input}")
+    """Process user input and update conversation history."""
+    if not user_input.strip():
+        return
+        
+    # Add user message to conversation
+    st.session_state.multi_agent_conversation.append(HumanMessage(content=user_input))
     
-    try:
-        # Add user message to conversation history
-        st.session_state.multi_agent_conversation.append(HumanMessage(content=user_input))
-        
-        # Process through multi-agent orchestrator
-        with st.spinner("🤖 AI Agents are working..."):
-            response = multi_agent_orchestrator.process_user_message(user_input)
-        
-        # Add AI response to conversation history
-        st.session_state.multi_agent_conversation.append(AIMessage(content=response))
-        
-        logger.info(f"Multi-agent response: {response}")
-        
-    except Exception as e:
-        logger.exception(f"Error processing user input: {e}")
-        error_message = "I'm sorry, I encountered an error processing your request. Please try again or contact support."
-        st.session_state.multi_agent_conversation.append(AIMessage(content=error_message))
+    # Get response from multi-agent system
+    response = multi_agent_orchestrator(user_input)
+    
+    # Add AI response to conversation
+    st.session_state.multi_agent_conversation.append(AIMessage(content=response))
 
 if __name__ == "__main__":
     main()
