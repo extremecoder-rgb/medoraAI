@@ -31,12 +31,29 @@ class MultiAgentState(TypedDict):
     doctor_recommendations: List[Dict[str, Any]]
     scheduling_options: List[Dict[str, Any]]
     conversation_complete: bool
+    # A2A Communication fields
+    agent_messages: List[Dict[str, Any]]
+    conflicts: List[Dict[str, Any]]
+    priority_level: int  # For Model Context Protocol (MCP)
+    # A2A Communication fields
+    agent_messages: List[Dict[str, Any]]
+    conflicts: List[Dict[str, Any]]
+    priority_level: int  # For Model Context Protocol (MCP)
 
 class MultiAgentOrchestrator:
     def __init__(self):
         self.config = AppConfig()
         self.conversation_history = []
         self.max_turns = 10
+        
+        # Priority levels for Model Context Protocol (MCP)
+        self.priority_levels = {
+            "emergency": 5,
+            "urgent": 4,
+            "standard": 3,
+            "routine": 2,
+            "flexible": 1
+        }
 
     def _build_workflow(self):
         # Configure graph with higher recursion limit
@@ -49,10 +66,20 @@ class MultiAgentOrchestrator:
         workflow.add_node("scheduler_agent", self._scheduler_agent_node)
         workflow.add_node("coordinator", self._coordinator_node)
         
+        # Add A2A communication nodes
+        workflow.add_node("conflict_resolver", self._conflict_resolver_node)
+        workflow.add_node("priority_manager", self._priority_manager_node)
+        
         # Define the flow
         workflow.add_edge("user_agent", "coordinator")
         workflow.add_edge("doctor_agent", "coordinator")
         workflow.add_edge("scheduler_agent", "coordinator")
+        
+        # A2A communication edges
+        workflow.add_edge("coordinator", "conflict_resolver", condition=self._has_conflicts)
+        workflow.add_edge("conflict_resolver", "coordinator")
+        workflow.add_edge("coordinator", "priority_manager", condition=self._needs_priority_decision)
+        workflow.add_edge("priority_manager", "coordinator")
         
         workflow.add_conditional_edges(
             "coordinator",
@@ -68,6 +95,135 @@ class MultiAgentOrchestrator:
         # Set entry point
         workflow.set_entry_point("coordinator")
         return workflow.compile()
+        
+    def _route_to_agent(self, state: MultiAgentState) -> str:
+        """Route to the next agent based on the current state"""
+        if state.get("conversation_complete", False):
+            return "end"
+            
+        return state.get("current_agent", "user")
+        
+    def _has_conflicts(self, state: MultiAgentState) -> bool:
+        """Check if there are scheduling conflicts that need resolution"""
+        return len(state.get("conflicts", [])) > 0
+    
+    def _needs_priority_decision(self, state: MultiAgentState) -> bool:
+        """Check if priority-based decision making is needed"""
+        # Check if there are multiple scheduling options with different priorities
+        scheduling_options = state.get("scheduling_options", [])
+        return len(scheduling_options) > 1
+    
+    def _conflict_resolver_node(self, state: MultiAgentState) -> MultiAgentState:
+        """Resolve scheduling conflicts between agents"""
+        conflicts = state.get("conflicts", [])
+        agent_messages = state.get("agent_messages", [])
+        
+        if not conflicts:
+            return state
+        
+        resolved_conflicts = []
+        for conflict in conflicts:
+            # Get alternative time slots
+            doctor_name = conflict.get("doctor_name")
+            original_time = conflict.get("original_time")
+            
+            # Find alternative slots
+            alternatives = self._find_alternative_slots(doctor_name, original_time)
+            
+            # Add resolution to agent messages for communication
+            resolution_message = {
+                "from_agent": "conflict_resolver",
+                "to_agent": "scheduler",
+                "content": f"Conflict detected for {doctor_name} at {original_time}. Alternative slots: {alternatives}",
+                "alternatives": alternatives,
+                "conflict_id": conflict.get("id")
+            }
+            agent_messages.append(resolution_message)
+            
+            # Mark conflict as resolved
+            conflict["status"] = "resolved"
+            conflict["alternatives"] = alternatives
+            resolved_conflicts.append(conflict)
+        
+        # Update state
+        state["conflicts"] = resolved_conflicts
+        state["agent_messages"] = agent_messages
+        
+        # Add a message to the user about the conflict resolution
+        if resolved_conflicts:
+            conflict_msg = "I've detected a scheduling conflict. Let me suggest some alternative times."
+            state["messages"].append(AIMessage(content=conflict_msg))
+        
+        return state
+    
+    def _priority_manager_node(self, state: MultiAgentState) -> MultiAgentState:
+        """Implement Model Context Protocol (MCP) for priority-based decision making"""
+        scheduling_options = state.get("scheduling_options", [])
+        
+        if not scheduling_options:
+            return state
+        
+        # Sort options by priority
+        priority_sorted = sorted(scheduling_options, key=lambda x: x.get("priority", 0), reverse=True)
+        
+        # Select highest priority option
+        if priority_sorted:
+            selected_option = priority_sorted[0]
+            
+            # Add decision to agent messages
+            decision_message = {
+                "from_agent": "priority_manager",
+                "to_agent": "scheduler",
+                "content": f"Selected option with priority {selected_option.get('priority')}: {selected_option.get('description')}",
+                "selected_option": selected_option
+            }
+            
+            agent_messages = state.get("agent_messages", [])
+            agent_messages.append(decision_message)
+            
+            # Update state
+            state["agent_messages"] = agent_messages
+            state["selected_option"] = selected_option
+            
+            # Add a message to the user about the priority-based decision
+            priority_msg = f"Based on your needs, I've prioritized {selected_option.get('description')}."
+            state["messages"].append(AIMessage(content=priority_msg))
+        
+        return state
+    
+    def _find_alternative_slots(self, doctor_name: str, original_time: str) -> List[str]:
+        """Find alternative time slots for a given doctor"""
+        # This would typically query a database or calendar system
+        # For this implementation, we'll generate some sample alternatives
+        
+        from datetime import datetime, timedelta
+        import random
+        
+        try:
+            # Parse the original time
+            if isinstance(original_time, str):
+                original_dt = datetime.strptime(original_time, "%Y-%m-%d %I:%M %p")
+            else:
+                original_dt = original_time
+                
+            # Generate alternatives (next day, same time and +/- 2 hours on same day)
+            alternatives = [
+                (original_dt + timedelta(days=1)).strftime("%Y-%m-%d %I:%M %p"),
+                (original_dt + timedelta(hours=2)).strftime("%Y-%m-%d %I:%M %p"),
+                (original_dt - timedelta(hours=2)).strftime("%Y-%m-%d %I:%M %p")
+            ]
+            
+            # Filter out non-business hours
+            business_hour_alternatives = []
+            for alt in alternatives:
+                alt_dt = datetime.strptime(alt, "%Y-%m-%d %I:%M %p")
+                if 8 <= alt_dt.hour < 18:  # 8 AM to 6 PM
+                    business_hour_alternatives.append(alt)
+            
+            return business_hour_alternatives
+        except Exception as e:
+            logger.error(f"Error finding alternative slots: {e}")
+            return ["Next business day", "Later this week"]
 
     def process_user_message(self, message: str) -> str:
         """Main entry point for processing user messages"""
