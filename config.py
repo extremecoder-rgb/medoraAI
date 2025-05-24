@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 import datetime
 from logger import setup_logger
+from langchain_groq import ChatGroq
 
 logger = setup_logger(__name__)
 
@@ -19,6 +20,15 @@ class AppConfig:
         
         # Validate configuration
         self._validate_config()
+
+        # Instantiate LLM (ChatGroq)
+        self.llm_model_name = os.getenv("LLM_MODEL", self.settings['llm']['model'] if hasattr(self, 'settings') and 'llm' in self.settings else "gemma-7b")
+        self.llm = ChatGroq(
+            api_key=os.getenv("GROQ_API_KEY", ""),
+            model=self.llm_model_name,
+            temperature=float(os.getenv("LLM_TEMPERATURE", self.settings['llm']['temperature'] if hasattr(self, 'settings') and 'llm' in self.settings else 0.7)),
+            max_tokens=int(os.getenv("LLM_MAX_TOKENS", self.settings['llm']['max_tokens'] if hasattr(self, 'settings') and 'llm' in self.settings else 1000))
+        )
 
     def _load_env_vars(self):
         """Load environment variables from .env file"""

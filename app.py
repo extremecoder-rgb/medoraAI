@@ -10,6 +10,7 @@ from audio_interface import audio_recorder, audio_player
 from email_service import email_service
 import datetime
 import json
+import re
 
 logger = setup_logger(__name__)
 
@@ -60,59 +61,94 @@ def main():
                     except Exception as e:
                         logger.warning(f"Text-to-speech failed: {e}")
 
-        # Voice input section
-        st.markdown("---")
-        st.markdown("**🎤 Voice Input**")
-        
-        # Add audio recorder
-        audio_recorder()
-        
-        # Handle audio data from browser
-        if 'audio_data' not in st.session_state:
-            st.session_state.audio_data = None
-            
-        # JavaScript to handle audio data
-        js = """
-        <script>
-            window.addEventListener('message', function(event) {
-                if (event.data.type === 'audioData') {
-                    window.parent.postMessage({
-                        type: 'streamlit:setComponentValue',
-                        value: event.data.data
-                    }, '*');
-                }
-            });
-        </script>
-        """
-        st.components.v1.html(js, height=0)
-        
-        # Process audio data if available
-        if st.session_state.audio_data:
-            try:
-                voice_input = st.session_state.voice_agent.process_voice_command(st.session_state.audio_data)
-                if voice_input:
-                    st.markdown("**🎙️ Voice Input Detected:**")
-                    st.text_area("", value=voice_input, height=100, disabled=True)
-                    
-                    voice_btn_col1, voice_btn_col2 = st.columns(2)
-                    with voice_btn_col1:
-                        if st.button("🤖 Send to AI Assistant", type="primary"):
-                            process_user_input(voice_input)
-                            st.session_state.audio_data = None
-                            st.rerun()
-                    with voice_btn_col2:
-                        if st.button("❌ Clear Voice Input"):
-                            st.session_state.audio_data = None
-                            st.rerun()
-            except Exception as e:
-                st.error(f"Voice processing failed: {e}")
-                st.session_state.audio_data = None
+        # Regular text input with mic button using streamlit-audiorec
+        chat_col1, chat_col2 = st.columns([10, 1])
+        with chat_col1:
+            user_input = st.chat_input("💬 Type your message here (e.g., 'I need to book an appointment with a cardiologist')")
+        with chat_col2:
+            if st.button("🎤", help="Record voice input"):
+                st.session_state.show_audio_recorder = True
 
-        # Regular text input
-        user_input = st.chat_input("💬 Type your message here (e.g., 'I need to book an appointment with a cardiologist')")
+        # Use streamlit-audiorec for audio recording
+        if st.session_state.get('show_audio_recorder', False):
+            st.markdown("**🎤 Speak now and stop when done...**")
+            from st_audiorec import st_audiorec
+            audio_data = st_audiorec()
+            if audio_data is not None:
+                # Save audio to a temp file and transcribe
+                import tempfile
+                import os
+                temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+                temp_wav.write(audio_data)
+                temp_wav.close()
+                try:
+                    import speech_recognition as sr
+                    recognizer = sr.Recognizer()
+                    with sr.AudioFile(temp_wav.name) as source:
+                        audio = recognizer.record(source)
+                        text = recognizer.recognize_google(audio)
+                    process_user_input(text)
+                    st.session_state.show_audio_recorder = False
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Voice processing failed: {e}")
+                    st.session_state.show_audio_recorder = False
+                finally:
+                    os.unlink(temp_wav.name)
+
         if user_input:
-            process_user_input(user_input)
-            st.rerun()
+            # Check if we are waiting for an email for the last appointment
+            if st.session_state.get('awaiting_email_for_appointment', False):
+                # Simple email validation
+                email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+                if re.match(email_pattern, user_input.strip()):
+                    # Update the last appointment with the email
+                    if st.session_state.appointments:
+                        st.session_state.appointments[-1]['email'] = user_input.strip()
+                        # Send confirmation email
+                        email_service.send_booking_confirmation(st.session_state.appointments[-1])
+                        st.session_state.awaiting_email_for_appointment = False
+                        st.success("Confirmation email sent!")
+                        st.rerun()
+                    else:
+                        st.session_state.awaiting_email_for_appointment = False
+                        st.error("No appointment found to attach this email to.")
+                else:
+                    st.warning("Please enter a valid email address to receive your confirmation.")
+            else:
+                process_user_input(user_input)
+                # After processing, check if a new appointment was added without email
+                if (
+                    st.session_state.appointments
+                    and not st.session_state.appointments[-1].get('email')
+                    and st.session_state.appointments[-1].get('status', '').lower() == 'confirmed'
+                    and not st.session_state.get('awaiting_email_for_appointment', False)
+                ):
+                    st.session_state.awaiting_email_for_appointment = True
+                    st.warning("Please provide your email address to receive a confirmation email for your appointment.")
+                st.rerun()
+        
+        # After chat and before quick actions, show email input if needed
+        if (
+            st.session_state.appointments
+            and not st.session_state.appointments[-1].get('email')
+            and st.session_state.appointments[-1].get('status', '').lower() == 'confirmed'
+            and not st.session_state.get('email_sent_for_last_appointment', False)
+        ):
+            st.markdown('---')
+            st.info('Please enter your email address to receive a confirmation email for your recent appointment:')
+            email_input = st.text_input('Email for confirmation', key='ai_booking_email')
+            if st.button('Send Confirmation Email'):
+                import re
+                email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
+                if re.match(email_pattern, email_input.strip()):
+                    st.session_state.appointments[-1]['email'] = email_input.strip()
+                    email_service.send_booking_confirmation(st.session_state.appointments[-1])
+                    st.session_state.email_sent_for_last_appointment = True
+                    st.success('Confirmation email sent!')
+                    st.rerun()
+                else:
+                    st.warning('Please enter a valid email address.')
         
         # Quick action buttons
         st.markdown("---")

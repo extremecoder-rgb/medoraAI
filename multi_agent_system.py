@@ -228,81 +228,42 @@ class MultiAgentOrchestrator:
     def process_user_message(self, message: str) -> str:
         """Main entry point for processing user messages"""
         try:
-            # Direct command processing without LLM
             message_lower = message.lower()
-            
-            # Handle appointment booking flow
+            # Special actions: booking, available appointments, doctor list, cancellation
             if "book" in message_lower and "appointment" in message_lower:
-                # Get available slots first
                 available_slots = """Available appointment slots:
-
-📅 2024-05-25 09:00 AM
-📅 2024-05-25 11:00 AM
-📅 2024-05-25 02:00 PM
-📅 2024-05-26 09:00 AM
-📅 2024-05-26 11:00 AM
-
-To book an appointment, please provide:
-1. Your preferred slot from above (e.g. '2024-05-25 09:00 AM')
-2. Your name
-3. Doctor name from our available doctors list
-
-Would you like me to show you the list of available doctors?"""
+\n📅 2024-05-25 09:00 AM\n📅 2024-05-25 11:00 AM\n📅 2024-05-25 02:00 PM\n📅 2024-05-26 09:00 AM\n📅 2024-05-26 11:00 AM\n\nTo book an appointment, please provide:\n1. Your preferred slot from above (e.g. '2024-05-25 09:00 AM')\n2. Your name\n3. Doctor name from our available doctors list\n\nWould you like me to show you the list of available doctors?"""
                 return available_slots
-            
-            # Handle available appointments query
             elif "available" in message_lower and "appointment" in message_lower:
-                return """Available appointment slots:
-
-📅 2024-05-25 09:00 AM
-📅 2024-05-25 11:00 AM
-📅 2024-05-25 02:00 PM
-📅 2024-05-26 09:00 AM
-📅 2024-05-26 11:00 AM
-
-To book an appointment, please provide:
-1. Your preferred slot from above
-2. Your name
-3. Preferred doctor (optional)"""
-            
-            # Handle doctor availability
+                return """Available appointment slots:\n\n📅 2024-05-25 09:00 AM\n📅 2024-05-25 11:00 AM\n📅 2024-05-25 02:00 PM\n📅 2024-05-26 09:00 AM\n📅 2024-05-26 11:00 AM\n\nTo book an appointment, please provide:\n1. Your preferred slot from above\n2. Your name\n3. Preferred doctor (optional)"""
             elif ("available" in message_lower and "doctor" in message_lower) or ("show" in message_lower and "doctor" in message_lower):
                 return self._list_available_doctors()
-            
-            # Handle actual booking with provided details
             elif any(word in message_lower for word in ["2024-05-25", "2024-05-26"]):
-                # Extract booking details
                 try:
                     return self._process_booking_details(message)
                 except Exception as e:
                     logger.error(f"Error processing booking details: {e}")
                     return "I couldn't process your booking details. Please provide them in this format:\nPreferred slot (e.g. '2024-05-25 09:00 AM'), your name, and preferred doctor"
-            
-            # Handle cancellation
             elif "cancel" in message_lower:
                 if not hasattr(st.session_state, 'appointments') or not st.session_state.appointments:
                     return "You don't have any appointments scheduled. Would you like to book one?"
-                
-                # Format current appointments for display
                 response = "Here are your current appointments:\n\n"
                 for i, apt in enumerate(st.session_state.appointments):
                     response += f"{i+1}. {apt['name']} with {apt['doctor_name']}\n"
                     response += f"   📅 {apt['time'].strftime('%A, %B %d at %I:%M %p')}\n"
                     response += f"   📍 {apt.get('location', 'Main Office')}\n\n"
-                
                 response += "To cancel an appointment, click the 'Cancel This Appointment' button next to the appointment in the Current Appointments section."
                 return response
-            
-            # Default response
+            # For all other queries, let the LLM answer freely
             else:
-                return """I can help you with:
-1. Booking appointments
-2. Checking available appointments
-3. Showing available doctors
-4. Canceling appointments
-
-What would you like to do?"""
-                
+                # Use the LLM directly for open-ended questions
+                try:
+                    prompt = f"You are a helpful medical assistant. Answer the following user query naturally and helpfully.\n\nUser: {message}\nAssistant:"
+                    response = self.config.llm.invoke(prompt)
+                    return response if isinstance(response, str) else getattr(response, 'content', str(response))
+                except Exception as e:
+                    logger.error(f"Error in LLM fallback: {str(e)}")
+                    return "I'm sorry, I couldn't process your request. Please try again or ask something else."
         except Exception as e:
             logger.exception(f"Error in process_user_message: {str(e)}")
             return self._handle_error()

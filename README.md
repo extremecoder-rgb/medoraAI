@@ -15,8 +15,9 @@ Modern healthcare and service industries face significant challenges in managing
 ## 🌟 What Can Medora AI Do Right Now?
 
 - **Conversational Booking:** Users can book, cancel, or check appointments using natural language—via chat or voice.
-- **Voice Interaction:** Speak to the system and hear responses back, making the experience accessible and hands-free.
+- **Voice Interaction:** Speak to the system and hear responses back, making the experience accessible and hands-free. (Now powered by `streamlit-audiorec` for reliable browser-based recording.)
 - **Multi-Agent Intelligence:** Three specialized AI agents (User Bot, Doctor Bot, Scheduler Bot) collaborate to understand user intent, recommend doctors, and manage scheduling.
+- **Hybrid LLM/Intent Architecture:** Routine actions (like booking/canceling) are handled by the orchestrator for reliability; all other queries are answered directly by a powerful LLM (default: `llama3-8b-8192` on Groq).
 - **Smart Scheduling:** The system checks doctor/provider availability, validates time slots, and prevents double-booking.
 - **Conflict Resolution:** If a requested slot is unavailable, the system suggests alternatives in real time.
 - **Priority Handling:** Urgent and emergency requests are prioritized using a Model Context Protocol (MCP).
@@ -31,8 +32,9 @@ Modern healthcare and service industries face significant challenges in managing
 - **Python 3.8+**
 - **Streamlit:** For the interactive web UI.
 - **LangChain & LangGraph:** For multi-agent orchestration and conversational AI.
-- **Groq LLM:** For advanced language understanding and generation.
+- **Groq LLM (`llama3-8b-8192`):** For advanced language understanding and generation.
 - **gTTS, pygame, SpeechRecognition:** For text-to-speech and speech-to-text capabilities.
+- **streamlit-audiorec:** For browser-based audio recording.
 - **smtplib, email:** For sending email notifications and reminders.
 - **dotenv, yaml:** For configuration management.
 - **Logging:** For robust monitoring and debugging.
@@ -79,7 +81,7 @@ git clone https://github.com/yourusername/medora-ai.git
 cd medora-ai
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with your configuration
+# Edit .env with your configuration (see below)
 streamlit run app.py
 ```
 
@@ -88,13 +90,28 @@ streamlit run app.py
 ## 📚 Usage
 
 - **Book an Appointment:**  
-  Start a conversation with "I would like to book an appointment" or use the voice input.
+  Start a conversation with "I would like to book an appointment" or use the voice input (mic button next to chat input).
 - **Check Availability:**  
   Ask "Show me available doctors" or "What are the next available appointments?"
 - **Manage Appointments:**  
   View, cancel, or add appointments via the dashboard or chat.
 - **Receive Notifications:**  
   Get email confirmations and reminders automatically.
+
+---
+
+## ⚡ Troubleshooting
+
+### Voice Input Issues
+- Make sure your browser has microphone access enabled.
+- If you see "Voice processing failed", try speaking clearly and for at least 2 seconds.
+- Ensure you have a stable internet connection (Google Speech Recognition API is used).
+- If you see a detailed error, check the stack trace for audio format or permission issues.
+
+### LLM/AI Issues
+- If you see errors like `model_not_found` or 404, update your `.env` or `settings.yaml` to use a supported model (e.g., `llama3-8b-8192`).
+- Make sure your `GROQ_API_KEY` is correct and you have access to the selected model.
+- Restart the app after changing model settings.
 
 ---
 
@@ -117,8 +134,8 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## 🙏 Acknowledgments
 
 - Built with Streamlit
-- Powered by Groq LLM
-- Voice processing by PyAudio, gTTS, and SpeechRecognition
+- Powered by Groq LLM (`llama3-8b-8192`)
+- Voice processing by PyAudio, gTTS, SpeechRecognition, and streamlit-audiorec
 - Multi-agent architecture inspired by LangChain
 
 ---
