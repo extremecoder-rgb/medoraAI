@@ -230,6 +230,22 @@ def reschedule_appointment(old_year: int, old_month: int, old_day: int, old_hour
                           patient_name: str = ""):
     """
     Reschedule an existing appointment to a new time.
+    
+    Args:
+        old_year (int): Year of the current appointment
+        old_month (int): Month of the current appointment
+        old_day (int): Day of the current appointment
+        old_hour (int): Hour of the current appointment
+        old_minute (int): Minute of the current appointment
+        new_year (int): Year of the new appointment
+        new_month (int): Month of the new appointment
+        new_day (int): Day of the new appointment
+        new_hour (int): Hour of the new appointment
+        new_minute (int): Minute of the new appointment
+        patient_name (str, optional): Name of the patient. Defaults to "".
+    
+    Returns:
+        str: Confirmation message with the rescheduled appointment details or error message if rescheduling fails.
     """
     logger.debug(f"Rescheduling appointment from {old_year}-{old_month}-{old_day} to {new_year}-{new_month}-{new_day}")
     
