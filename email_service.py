@@ -127,12 +127,12 @@ class EmailService:
                 appointment_time = appointment['time']
                 time_diff = appointment_time - now
                 
-                # Send reminder 24 hours before
+               
                 if timedelta(hours=23) <= time_diff <= timedelta(hours=25):
                     self.send_reminder(appointment)
                     logger.info(f"Sent 24-hour reminder for appointment with {appointment['doctor_name']}")
                 
-                # Send reminder 1 hour before
+                
                 elif timedelta(minutes=55) <= time_diff <= timedelta(minutes=65):
                     self.send_reminder(appointment)
                     logger.info(f"Sent 1-hour reminder for appointment with {appointment['doctor_name']}")
@@ -147,7 +147,7 @@ class EmailService:
         def reminder_job():
             while self.is_running:
                 self.check_and_send_reminders(appointments)
-                time.sleep(300)  # Check every 5 minutes
+                time.sleep(300) 
 
         if not self.is_running:
             self.is_running = True
@@ -163,7 +163,7 @@ class EmailService:
         logger.info("Reminder service stopped")
 
     def send_appointment_confirmation(self, appointment_data):
-        """Send appointment confirmation email."""
+       
         try:
             if not all([self.smtp_username, self.smtp_password, self.sender_email]):
                 logger.warning("Email configuration incomplete. Skipping email send.")
@@ -178,7 +178,7 @@ class EmailService:
             msg['To'] = appointment_data['email']
             msg['Subject'] = "Appointment Confirmation - Smart Medical System"
 
-            # Create email body
+            
             body = f"""
             Dear {appointment_data['name']},
 
@@ -198,7 +198,7 @@ class EmailService:
 
             msg.attach(MIMEText(body, 'plain'))
 
-            # Connect to SMTP server and send email
+            
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.starttls()
                 server.login(self.smtp_username, self.smtp_password)
@@ -211,5 +211,4 @@ class EmailService:
             logger.error(f"Failed to send confirmation email: {str(e)}")
             return False
 
-# Create global instance
 email_service = EmailService() 

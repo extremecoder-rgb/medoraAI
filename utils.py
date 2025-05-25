@@ -38,22 +38,16 @@ def add_manual_appointment(person_name, appointment_type, appointment_date, appo
     }
     st.session_state.appointments.append(new_appointment)
     logger.debug(f"Manually added appointment: {new_appointment}")
-    
-    # Send booking confirmation email if email is provided
     if email:
         st.session_state.email_service.send_booking_confirmation(new_appointment)
 
 def cancel_appointment(appointment_index: int) -> bool:
-    """Cancel an appointment by its index"""
+    
     try:
         if 'appointments' in st.session_state and 0 <= appointment_index < len(st.session_state.appointments):
-            # Get the appointment details before removing
+           
             cancelled_appointment = st.session_state.appointments[appointment_index]
-            
-            # Remove the appointment
             st.session_state.appointments.pop(appointment_index)
-            
-            # Log the cancellation
             logger.info(f"Cancelled appointment for {cancelled_appointment['name']} with {cancelled_appointment['doctor_name']}")
             
             return True

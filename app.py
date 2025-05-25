@@ -1,4 +1,3 @@
-# app.py - Updated with Multi-Agent System
 import streamlit as st
 from multi_agent_system import multi_agent_orchestrator
 from langchain_core.messages import HumanMessage, AIMessage
@@ -17,13 +16,11 @@ logger = setup_logger(__name__)
 def main():
     config = AppConfig()
     initialize_session_state()
-    
-    # Initialize voice agent
+
     if 'voice_agent' not in st.session_state:
         st.session_state.voice_agent = VoiceAgent()
-        st.session_state.last_spoken_message = None  # Track last spoken message
-    
-    # Initialize conversation history for multi-agent system
+        st.session_state.last_spoken_message = None  
+  
     if 'multi_agent_conversation' not in st.session_state:
         st.session_state.multi_agent_conversation = []
 
@@ -33,7 +30,7 @@ def main():
         layout="wide"
     )
     
-    # Header
+   
     st.title("🏥 Smart Medical Appointment System")
     st.markdown("*Powered by Multi-Agent AI - User Bot, Doctor Bot & Scheduler Bot*")
     
@@ -43,13 +40,13 @@ def main():
     with col1:
         st.subheader("🤖 AI Assistant Chat")
         
-        # Display conversation history
+        
         for message in st.session_state.multi_agent_conversation:
             if isinstance(message, HumanMessage):
                 st.chat_message("user").write(message.content)
             elif isinstance(message, AIMessage):
                 st.chat_message("assistant").write(message.content)
-                # Only speak if this is a new message and different from the last spoken message
+               
                 if (message == st.session_state.multi_agent_conversation[-1] and 
                     message.content != st.session_state.last_spoken_message):
                     try:
@@ -61,7 +58,7 @@ def main():
                     except Exception as e:
                         logger.warning(f"Text-to-speech failed: {e}")
 
-        # Regular text input with mic button using streamlit-audiorec
+        
         chat_col1, chat_col2 = st.columns([10, 1])
         with chat_col1:
             user_input = st.chat_input("💬 Type your message here (e.g., 'I need to book an appointment with a cardiologist')")
@@ -69,13 +66,13 @@ def main():
             if st.button("🎤", help="Record voice input"):
                 st.session_state.show_audio_recorder = True
 
-        # Use streamlit-audiorec for audio recording
+       
         if st.session_state.get('show_audio_recorder', False):
             st.markdown("**🎤 Speak now and stop when done...**")
             from st_audiorec import st_audiorec
             audio_data = st_audiorec()
             if audio_data is not None:
-                # Save audio to a temp file and transcribe
+               
                 import tempfile
                 import os
                 temp_wav = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
@@ -97,15 +94,15 @@ def main():
                     os.unlink(temp_wav.name)
 
         if user_input:
-            # Check if we are waiting for an email for the last appointment
+           
             if st.session_state.get('awaiting_email_for_appointment', False):
-                # Simple email validation
+                
                 email_pattern = r"^[\w\.-]+@[\w\.-]+\.\w+$"
                 if re.match(email_pattern, user_input.strip()):
-                    # Update the last appointment with the email
+                    
                     if st.session_state.appointments:
                         st.session_state.appointments[-1]['email'] = user_input.strip()
-                        # Send confirmation email
+                       
                         email_service.send_booking_confirmation(st.session_state.appointments[-1])
                         st.session_state.awaiting_email_for_appointment = False
                         st.success("Confirmation email sent!")
@@ -117,7 +114,7 @@ def main():
                     st.warning("Please enter a valid email address to receive your confirmation.")
             else:
                 process_user_input(user_input)
-                # After processing, check if a new appointment was added without email
+                
                 if (
                     st.session_state.appointments
                     and not st.session_state.appointments[-1].get('email')
@@ -128,7 +125,7 @@ def main():
                     st.warning("Please provide your email address to receive a confirmation email for your appointment.")
                 st.rerun()
         
-        # After chat and before quick actions, show email input if needed
+       
         if (
             st.session_state.appointments
             and not st.session_state.appointments[-1].get('email')
@@ -150,7 +147,7 @@ def main():
                 else:
                     st.warning('Please enter a valid email address.')
         
-        # Quick action buttons
+      
         st.markdown("---")
         st.markdown("**🚀 Quick Actions:**")
         quick_col1, quick_col2, quick_col3, quick_col4 = st.columns(4)
@@ -179,7 +176,7 @@ def main():
         st.subheader("📋 Current Appointments")
         
         if st.session_state.appointments:
-            # Sort appointments by time
+            
             sorted_appointments = sorted(st.session_state.appointments, key=lambda x: x["time"])
             
             for i, appointment in enumerate(sorted_appointments):
@@ -195,7 +192,7 @@ def main():
                     if appointment.get('email'):
                         st.write(f"**Email:** {appointment['email']}")
                     
-                    # Quick cancel button
+                    
                     if st.button(f"Cancel This Appointment", key=f"cancel_{i}"):
                         if cancel_appointment(i):
                             st.success("Appointment cancelled!")
@@ -206,14 +203,12 @@ def main():
 
     with col3:
         st.subheader("⚙️ System Controls")
-        
-        # Agent status indicators
         st.markdown("**🤖 Agent Status:**")
         st.success("✅ User Bot: Active")
         st.success("✅ Doctor Bot: Active") 
         st.success("✅ Scheduler Bot: Active")
         
-        # Manual appointment creation
+        
         st.markdown("---")
         st.markdown("**➕ Manual Booking:**")
         with st.form("quick_appointment_form"):
@@ -224,7 +219,7 @@ def main():
             date = st.date_input("Date", min_value=datetime.date.today())
             time = st.time_input("Time", value=datetime.time(9, 0))
             
-            # Local doctor schedules dictionary
+            
             doctor_schedules = {
                 "Dr. Smith": {"location": "Main Building, Room 101"},
                 "Dr. Johnson": {"location": "Cardiac Wing, Room 205"},
@@ -244,7 +239,7 @@ def main():
                         doctor_name=doctor,
                         location=doctor_info.get('location', 'Main Office')
                     )
-                    # Send confirmation email
+                   
                     appointment_data = {
                         "name": name,
                         "email": email,
@@ -261,7 +256,7 @@ def main():
                 else:
                     st.error("Patient name and email are required!")
         
-        # Debug information (collapsible)
+    
         with st.expander("🔧 Debug Information"):
             st.write("**Session State:**")
             st.json({
@@ -281,13 +276,13 @@ def process_user_input(user_input: str):
     if not user_input.strip():
         return
         
-    # Add user message to conversation
+    
     st.session_state.multi_agent_conversation.append(HumanMessage(content=user_input))
     
-    # Get response from multi-agent system
+    
     response = multi_agent_orchestrator.process_user_message(user_input)
     
-    # Add AI response to conversation
+    
     st.session_state.multi_agent_conversation.append(AIMessage(content=response))
 
 if __name__ == "__main__":

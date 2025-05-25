@@ -77,11 +77,9 @@ While Medora AI already leverages a robust multi-agent system, integrating an **
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/medora-ai.git
+git clone https://github.com/extremecoder-rgb/medoraAI.git
 cd medora-ai
 pip install -r requirements.txt
-cp .env.example .env
-# Edit .env with your configuration (see below)
 streamlit run app.py
 ```
 
@@ -142,9 +140,9 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## 📞 Support
 
-For support, email support@medora-ai.com or open an issue in the repository.
+For support, email hsuswiowkskow@gmail.com or open an issue in the repository.
 
 ---
 
-Made with ❤️ by the Medora AI Team
+Made with ❤️ by Subhranil Mondal
 ```

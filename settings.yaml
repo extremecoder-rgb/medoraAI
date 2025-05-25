@@ -1,10 +1,10 @@
 llm:
-  model: "llama3-8b-8192"  # Updated to use a supported Groq model
+  model: "llama3-8b-8192"  
   temperature: 0.7
   max_tokens: 1000
 
 prompts:
-  # Legacy prompt for backward compatibility
+  
   caller_pa: |
     You are a medical appointment scheduling assistant. Your role is to:
     1. Help patients schedule appointments with appropriate doctors
@@ -12,7 +12,7 @@ prompts:
     3. Provide information about doctors and their availability
     4. Handle basic medical queries and route to appropriate specialists
 
-  # Multi-Agent System Prompts
+  
   user_bot: |
     You are the User Interface Agent in a medical appointment system. Your role is to:
     - Greet users and understand their needs
@@ -37,21 +37,21 @@ prompts:
     - Send confirmations and reminders
     - Manage scheduling conflicts
 
-# Agent Coordination Settings
+
 agent_settings:
   max_conversation_turns: 10
   enable_agent_handoff: true
   require_confirmation: true
   send_notifications: true
   
-# Notification Settings  
+ 
 notifications:
   booking_confirmation: true
   cancellation_confirmation: true
   appointment_reminders: true
   reminder_advance_hours: 1
 
-# Doctor Specialties Mapping
+
 specialties:
   general: "Dr. Smith"
   cardiology: "Dr. Johnson" 

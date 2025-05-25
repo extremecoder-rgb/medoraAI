@@ -9,19 +9,11 @@ logger = setup_logger(__name__)
 
 class AppConfig:
     def __init__(self):
-        # Load environment variables
         self._load_env_vars()
-        
-        # Load settings
         self._load_settings()
-        
-        # Initialize email configuration
         self._init_email_config()
-        
-        # Validate configuration
         self._validate_config()
-
-        # Instantiate LLM (ChatGroq)
+ 
         self.llm_model_name = os.getenv("LLM_MODEL", self.settings['llm']['model'] if hasattr(self, 'settings') and 'llm' in self.settings else "gemma-7b")
         self.llm = ChatGroq(
             api_key=os.getenv("GROQ_API_KEY", ""),
@@ -39,7 +31,7 @@ class AppConfig:
         else:
             logger.warning(".env file not found")
 
-        # Load environment variables
+        
         self.groq_api_key = os.getenv('GROQ_API_KEY', '')
         self.debug = os.getenv('DEBUG', 'False').lower() == 'true'
         self.voice_enabled = os.getenv('VOICE_ENABLED', 'True').lower() == 'true'
@@ -51,15 +43,11 @@ class AppConfig:
             with open('settings.yaml', 'r', encoding='utf-8') as f:
                 self.settings = yaml.safe_load(f)
                 
-            # Extract commonly used settings
+         
             self.llm_model = self.settings['llm']['model']
             self.llm_temperature = self.settings['llm']['temperature']
             self.llm_max_tokens = self.settings['llm']['max_tokens']
-            
-            # Load prompts
             self.prompts = self.settings['prompts']
-            
-            # Load doctor schedules
             self.doctor_schedules = self.settings['doctor_schedules']
             
         except Exception as e:
