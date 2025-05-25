@@ -78,7 +78,15 @@ def initialize_session_state():
 
 @tool
 def book_appointment(details: Dict[str, Any]) -> str:
+    """
+    Book a new appointment with the specified details.
     
+    Args:
+        details (Dict[str, Any]): Dictionary containing appointment details including patient_name, doctor_name, and appointment_time.
+    
+    Returns:
+        str: Confirmation message with appointment details.
+    """
     required_fields = ["patient_name", "doctor_name", "appointment_time"]
     
     for field in required_fields:
@@ -95,7 +103,15 @@ A confirmation email will be sent shortly."""
 
 @tool
 def get_next_available_appointment(query: str = "") -> str:
-   
+    """
+    Get the next available appointment slots.
+    
+    Args:
+        query (str, optional): Search query to filter available slots. Defaults to "".
+    
+    Returns:
+        str: List of available appointment slots.
+    """
     current_time = datetime.now()
     available_slots = []
     
@@ -119,7 +135,15 @@ def get_next_available_appointment(query: str = "") -> str:
 
 @tool
 def cancel_appointment(details: Dict[str, Any]) -> str:
+    """
+    Cancel an existing appointment.
     
+    Args:
+        details (Dict[str, Any]): Dictionary containing appointment details including appointment_id.
+    
+    Returns:
+        str: Confirmation message for the cancelled appointment.
+    """
     required_fields = ["appointment_id"]
     
     for field in required_fields:
@@ -131,7 +155,15 @@ def cancel_appointment(details: Dict[str, Any]) -> str:
 
 @tool
 def get_doctor_availability(query: Dict[str, str]) -> str:
-   
+    """
+    Get the availability schedule for a specific doctor.
+    
+    Args:
+        query (Dict[str, str]): Dictionary containing doctor_name to check availability for.
+    
+    Returns:
+        str: Doctor's availability schedule including days and hours.
+    """
     doctor_name = query.get("doctor_name", "")
     current_time = datetime.now()
     
@@ -157,7 +189,15 @@ def get_doctor_availability(query: Dict[str, str]) -> str:
 
 @tool
 def get_doctor_list(query: str = "") -> str:
-   
+    """
+    Get a list of all available doctors and their specialties.
+    
+    Args:
+        query (str, optional): Search query to filter doctors. Defaults to "".
+    
+    Returns:
+        str: List of doctors and their specialties.
+    """
     doctors = {
         "Dr. Smith": "General Practice",
         "Dr. Johnson": "Cardiology",
@@ -173,8 +213,15 @@ def get_doctor_list(query: str = "") -> str:
 
 @tool
 def get_appointment_details(appointment_id: str) -> str:
-   
-   
+    """
+    Get details for a specific appointment.
+    
+    Args:
+        appointment_id (str): The unique identifier of the appointment.
+    
+    Returns:
+        str: Details of the specified appointment.
+    """
     return f"Appointment details for ID: {appointment_id}"
 
 @tool
